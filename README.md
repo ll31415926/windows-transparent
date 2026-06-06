@@ -32,7 +32,7 @@ wtrans 是一个纯 Go 实现的命令行窗口透明度管理工具，无需任
 ### 安装步骤
 ```bash
 # 克隆仓库
-git clone https://github.com/user/windows-transparent.git
+git clone https://github.com/ll31415926/windows-transparent.git
 
 # 进入项目目录
 cd windows-transparent
