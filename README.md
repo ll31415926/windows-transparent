@@ -272,10 +272,5 @@ echo '{
 
 欢迎提交 Issue 和 Pull Request 来改进这个项目！
 
-## 贡献者 ✨
-
-- [你的名字](https://github.com/ll31415926)
-- [OpenAI Codex]([https://github.com/openai/codex) 
----
 
 **让每一个窗口恰到好处** - 精准控制你的工作空间 🪟
