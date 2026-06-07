@@ -5,6 +5,7 @@ package window
 import (
 	"errors"
 	"fmt"
+	"io"
 	"syscall"
 	"unsafe"
 
@@ -57,10 +58,12 @@ func ListVisible() ([]Window, error) {
 		pid := windowProcessID(hwnd)
 		found = append(found, Window{
 			Handle:  hwnd,
+			ID:      fmt.Sprintf("0x%X", hwnd),
 			PID:     pid,
 			Process: processes[pid],
 			Title:   windowText(hwnd),
 			Visible: true,
+			Backend: "windows",
 		})
 
 		return 1
@@ -76,11 +79,12 @@ func ListVisible() ([]Window, error) {
 	return found, nil
 }
 
-func SetOpacity(hwnd uintptr, value int) error {
+func SetOpacity(win Window, value int) error {
 	if err := opacity.Validate(value); err != nil {
 		return err
 	}
 
+	hwnd := win.Handle
 	style, err := extendedStyle(hwnd)
 	if err != nil {
 		return fmt.Errorf("get extended style for HWND 0x%X: %w", hwnd, err)
@@ -99,7 +103,8 @@ func SetOpacity(hwnd uintptr, value int) error {
 	return nil
 }
 
-func Restore(hwnd uintptr) error {
+func Restore(win Window) error {
+	hwnd := win.Handle
 	style, err := extendedStyle(hwnd)
 	if err != nil {
 		return fmt.Errorf("get extended style for HWND 0x%X: %w", hwnd, err)
@@ -131,6 +136,20 @@ func Restore(hwnd uintptr) error {
 	}
 
 	return nil
+}
+
+func Diagnose(w io.Writer) error {
+	fmt.Fprintln(w, "backend: windows")
+	fmt.Fprintln(w, "support: Win32 layered windows")
+	return nil
+}
+
+func InstallGNOMEExtension(_ io.Writer) error {
+	return errors.New("GNOME Shell extension installation is only supported on Linux")
+}
+
+func GNOMEExtensionStatus(_ io.Writer) error {
+	return errors.New("GNOME Shell extension status is only supported on Linux")
 }
 
 func processNames() (map[uint32]string, error) {
