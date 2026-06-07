@@ -47,6 +47,45 @@ func TestParseApplyCommandWithConfig(t *testing.T) {
 	}
 }
 
+func TestParseDiagnoseCommand(t *testing.T) {
+	cmd, err := Parse([]string{"diagnose"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+
+	if cmd.Name != CommandDiagnose {
+		t.Fatalf("cmd.Name = %q, want %q", cmd.Name, CommandDiagnose)
+	}
+}
+
+func TestParseGNOMEExtensionInstallCommand(t *testing.T) {
+	cmd, err := Parse([]string{"gnome-extension", "install"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+
+	if cmd.Name != CommandGNOMEExtension {
+		t.Fatalf("cmd.Name = %q, want %q", cmd.Name, CommandGNOMEExtension)
+	}
+	if cmd.Action != "install" {
+		t.Fatalf("cmd.Action = %q, want install", cmd.Action)
+	}
+}
+
+func TestParseGNOMEExtensionStatusCommand(t *testing.T) {
+	cmd, err := Parse([]string{"gnome-extension", "status"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+
+	if cmd.Name != CommandGNOMEExtension {
+		t.Fatalf("cmd.Name = %q, want %q", cmd.Name, CommandGNOMEExtension)
+	}
+	if cmd.Action != "status" {
+		t.Fatalf("cmd.Action = %q, want status", cmd.Action)
+	}
+}
+
 func TestParseSetCommandRequiresProcess(t *testing.T) {
 	_, err := Parse([]string{"set", "--opacity", "70"})
 	if err == nil {
