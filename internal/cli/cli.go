@@ -15,10 +15,12 @@ import (
 type CommandName string
 
 const (
-	CommandList    CommandName = "list"
-	CommandSet     CommandName = "set"
-	CommandRestore CommandName = "restore"
-	CommandApply   CommandName = "apply"
+	CommandList           CommandName = "list"
+	CommandSet            CommandName = "set"
+	CommandRestore        CommandName = "restore"
+	CommandApply          CommandName = "apply"
+	CommandDiagnose       CommandName = "diagnose"
+	CommandGNOMEExtension CommandName = "gnome-extension"
 )
 
 type Command struct {
@@ -26,6 +28,7 @@ type Command struct {
 	Process    string
 	Opacity    int
 	ConfigPath string
+	Action     string
 }
 
 type UsageError struct {
@@ -71,6 +74,10 @@ func Execute(args []string, stdout io.Writer) error {
 		return restoreProcess(stdout, cmd.Process)
 	case CommandApply:
 		return applyConfig(stdout, cmd.ConfigPath)
+	case CommandDiagnose:
+		return window.Diagnose(stdout)
+	case CommandGNOMEExtension:
+		return runGNOMEExtension(stdout, cmd.Action)
 	default:
 		return UsageError{Message: fmt.Sprintf("unknown command %q", cmd.Name)}
 	}
@@ -143,6 +150,35 @@ func Parse(args []string) (Command, error) {
 
 		return Command{Name: CommandApply, ConfigPath: strings.TrimSpace(*configPath)}, nil
 
+	case string(CommandDiagnose):
+		fs := newFlagSet("diagnose")
+		if err := fs.Parse(args[1:]); err != nil {
+			return Command{}, UsageError{Message: err.Error()}
+		}
+		if fs.NArg() != 0 {
+			return Command{}, UsageError{Message: fmt.Sprintf("unexpected argument %q", fs.Arg(0))}
+		}
+
+		return Command{Name: CommandDiagnose}, nil
+
+	case string(CommandGNOMEExtension):
+		if len(args) < 2 {
+			return Command{}, UsageError{Message: "missing gnome-extension action"}
+		}
+		action := strings.TrimSpace(args[1])
+		if action != "install" && action != "status" {
+			return Command{}, UsageError{Message: fmt.Sprintf("unknown gnome-extension action %q", action)}
+		}
+		fs := newFlagSet("gnome-extension")
+		if err := fs.Parse(args[2:]); err != nil {
+			return Command{}, UsageError{Message: err.Error()}
+		}
+		if fs.NArg() != 0 {
+			return Command{}, UsageError{Message: fmt.Sprintf("unexpected argument %q", fs.Arg(0))}
+		}
+
+		return Command{Name: CommandGNOMEExtension, Action: action}, nil
+
 	default:
 		return Command{}, UsageError{Message: fmt.Sprintf("unknown command %q", args[0])}
 	}
@@ -154,6 +190,9 @@ func PrintUsage(w io.Writer) {
   wtrans set --process notepad.exe --opacity 70
   wtrans restore --process notepad.exe
   wtrans apply [--config path\to\config.json]
+  wtrans diagnose
+  wtrans gnome-extension install
+  wtrans gnome-extension status
 
 Opacity is a percent from 20 to 100. Process names are matched case-insensitively.`)
 }
@@ -176,8 +215,8 @@ func setProcessOpacity(stdout io.Writer, process string, opacityValue int) error
 	}
 
 	for _, win := range windows {
-		if err := window.SetOpacity(win.Handle, opacityValue); err != nil {
-			return fmt.Errorf("set %s HWND 0x%X: %w", win.Process, win.Handle, err)
+		if err := window.SetOpacity(win, opacityValue); err != nil {
+			return fmt.Errorf("set %s window %s: %w", win.Process, windowLabel(win), err)
 		}
 	}
 
@@ -192,8 +231,8 @@ func restoreProcess(stdout io.Writer, process string) error {
 	}
 
 	for _, win := range windows {
-		if err := window.Restore(win.Handle); err != nil {
-			return fmt.Errorf("restore %s HWND 0x%X: %w", win.Process, win.Handle, err)
+		if err := window.Restore(win); err != nil {
+			return fmt.Errorf("restore %s window %s: %w", win.Process, windowLabel(win), err)
 		}
 	}
 
@@ -225,8 +264,8 @@ func applyConfig(stdout io.Writer, configPath string) error {
 		}
 
 		for _, win := range matches {
-			if err := window.SetOpacity(win.Handle, rule.Opacity); err != nil {
-				return fmt.Errorf("apply rule for %s HWND 0x%X: %w", win.Process, win.Handle, err)
+			if err := window.SetOpacity(win, rule.Opacity); err != nil {
+				return fmt.Errorf("apply rule for %s window %s: %w", win.Process, windowLabel(win), err)
 			}
 		}
 
@@ -234,6 +273,17 @@ func applyConfig(stdout io.Writer, configPath string) error {
 	}
 
 	return nil
+}
+
+func runGNOMEExtension(stdout io.Writer, action string) error {
+	switch action {
+	case "install":
+		return window.InstallGNOMEExtension(stdout)
+	case "status":
+		return window.GNOMEExtensionStatus(stdout)
+	default:
+		return UsageError{Message: fmt.Sprintf("unknown gnome-extension action %q", action)}
+	}
 }
 
 func matchingWindows(process string) ([]window.Window, error) {
@@ -256,10 +306,21 @@ func printWindows(stdout io.Writer, windows []window.Window) {
 		return
 	}
 
-	fmt.Fprintf(stdout, "%-18s %-8s %-24s %s\n", "HWND", "PID", "PROCESS", "TITLE")
+	fmt.Fprintf(stdout, "%-18s %-8s %-24s %-18s %-10s %s\n", "HANDLE", "PID", "PROCESS", "CLASS", "BACKEND", "TITLE")
 	for _, win := range windows {
-		fmt.Fprintf(stdout, "0x%-16X %-8d %-24s %s\n", win.Handle, win.PID, win.Process, win.Title)
+		fmt.Fprintf(stdout, "%-18s %-8d %-24s %-18s %-10s %s\n", windowLabel(win), win.PID, win.Process, win.Class, win.Backend, win.Title)
 	}
+}
+
+func windowLabel(win window.Window) string {
+	if win.ID != "" {
+		return win.ID
+	}
+	if win.Handle != 0 {
+		return fmt.Sprintf("0x%X", win.Handle)
+	}
+
+	return "<unknown>"
 }
 
 func newFlagSet(name string) *flag.FlagSet {
