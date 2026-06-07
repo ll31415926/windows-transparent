@@ -4,10 +4,13 @@ import "strings"
 
 type Window struct {
 	Handle  uintptr
+	ID      string
 	PID     uint32
 	Process string
+	Class   string
 	Title   string
 	Visible bool
+	Backend string
 }
 
 func MatchByProcess(windows []Window, process string) []Window {
@@ -18,7 +21,7 @@ func MatchByProcess(windows []Window, process string) []Window {
 
 	matches := make([]Window, 0, len(windows))
 	for _, win := range windows {
-		if strings.EqualFold(win.Process, process) {
+		if strings.EqualFold(win.Process, process) || strings.EqualFold(win.Class, process) {
 			matches = append(matches, win)
 		}
 	}
