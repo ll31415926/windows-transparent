@@ -4,7 +4,7 @@
 
 `wtrans` is a command-line window opacity tool. It lists desktop windows and changes opacity by process name or window class.
 
-It is not a window manager and it does not modify the target application itself. Opacity changes usually apply only to currently open windows. After an application restart, window recreation, or desktop environment reload, rules may need to be applied again.
+It is not a window manager and it does not modify the target application itself. One-shot `set/apply` changes usually apply only to currently open windows. To keep newly opened or recreated windows at a target opacity, save a rule and run `watch`.
 
 ## Support Matrix
 
@@ -97,6 +97,12 @@ wtrans restore --process notepad.exe
 # Apply rules from a config file
 wtrans apply --config config.json
 
+# Save a persistent rule
+wtrans remember --process Code.exe --class Chrome_WidgetWin_1 --title-contains windows-transparent --opacity 75
+
+# Keep polling the config and applying rules
+wtrans watch --interval 2s
+
 # Print platform and backend diagnostics
 wtrans diagnose
 ```
@@ -181,7 +187,13 @@ Example config:
 ```json
 {
   "rules": [
-    { "process": "Code.exe", "opacity": 85 },
+    {
+      "process": "Code.exe",
+      "class": "Chrome_WidgetWin_1",
+      "title_contains": "windows-transparent",
+      "opacity": 85,
+      "enabled": true
+    },
     { "process": "notepad.exe", "opacity": 65 },
     { "process": "firefox", "opacity": 90 },
     { "process": "gnome-terminal", "opacity": 80 }
@@ -194,10 +206,35 @@ Field constraints:
 | Field | Type | Required | Description |
 |---|---|---:|---|
 | `rules` | array | Yes | List of opacity rules |
-| `rules[].process` | string | Yes | Process name or window class |
+| `rules[].process` | string | Yes | Process name, case-insensitive |
+| `rules[].class` | string | No | Window class, case-insensitive exact match |
+| `rules[].title_contains` | string | No | Title substring, case-insensitive |
 | `rules[].opacity` | integer | Yes | Opacity percentage, from `20` to `100` |
+| `rules[].enabled` | boolean | No | Whether the rule is enabled; defaults to `true` |
 
 Config parsing uses strict JSON field validation. Unknown fields and trailing extra JSON values are rejected.
+
+### `remember`
+
+```bash
+wtrans remember --process name --opacity 70 [--class class-name] [--title-contains text] [--config path/to/config.json]
+```
+
+Saves or updates one rule. If a rule with the same `process + class + title_contains` selector already exists, only opacity and enabled state are updated; no duplicate rule is appended.
+
+Example:
+
+```bash
+wtrans remember --process Code.exe --class Chrome_WidgetWin_1 --title-contains windows-transparent --opacity 75
+```
+
+### `watch`
+
+```bash
+wtrans watch [--config path/to/config.json] [--interval 2s]
+```
+
+Applies the config immediately, then polls visible windows at `--interval` and keeps applying matching rules. Press `Ctrl+C` to exit. `watch` does not install a background service, write registry keys, or configure startup.
 
 ### `diagnose`
 
@@ -280,15 +317,15 @@ The repository includes `.github/workflows/release.yml`. Pushing a `v*` or `V*` 
 Release example:
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.2
+git push origin v1.2
 ```
 
 Verify a downloaded file:
 
 ```powershell
-Get-FileHash .\wtrans_v1.2.0_windows_amd64.zip -Algorithm SHA256
-Get-FileHash .\wtrans_v1.2.0_windows_amd64.zip -Algorithm MD5
+Get-FileHash .\wtrans_v1.2_windows_amd64.zip -Algorithm SHA256
+Get-FileHash .\wtrans_v1.2_windows_amd64.zip -Algorithm MD5
 ```
 
 MD5 is provided only for compatibility with integrity-check workflows. Prefer SHA256 for security-sensitive verification.
@@ -297,7 +334,7 @@ MD5 is provided only for compatibility with integrity-check workflows. Prefer SH
 
 - Opacity below `20` is rejected to avoid making windows difficult to interact with.
 - Only currently visible windows discovered by the active backend are affected.
-- Changes are not persistent configuration. They may be lost after application restart, window recreation, or desktop environment reload.
+- One-shot `set/apply` changes are not persistent configuration. They may be lost after application restart, window recreation, or desktop environment reload. Run `wtrans watch` when rules must be kept active.
 - On Windows, controlling elevated windows may require running `wtrans` elevated as well.
 - Linux Wayland has no cross-desktop generic window opacity API, so support depends on the compositor and available tools.
 

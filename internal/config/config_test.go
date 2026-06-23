@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"windows-transparent/internal/window"
 )
 
 func TestParseValidConfig(t *testing.T) {
 	cfg, err := Parse(strings.NewReader(`{
 		"rules": [
-			{ "process": "notepad.exe", "opacity": 65 },
+			{ "process": "notepad.exe", "class": "Notepad", "title_contains": "Untitled", "opacity": 65, "enabled": true },
 			{ "process": "Code.exe", "opacity": 85 }
 		]
 	}`))
@@ -23,6 +25,9 @@ func TestParseValidConfig(t *testing.T) {
 	}
 	if cfg.Rules[0].Process != "notepad.exe" || cfg.Rules[0].Opacity != 65 {
 		t.Fatalf("first rule = %#v", cfg.Rules[0])
+	}
+	if cfg.Rules[0].Class != "Notepad" || cfg.Rules[0].TitleContains != "Untitled" || !cfg.Rules[0].EnabledValue() {
+		t.Fatalf("first rule selector = %#v", cfg.Rules[0])
 	}
 }
 
@@ -63,6 +68,58 @@ func TestResolvePathTrimsExplicitPath(t *testing.T) {
 
 	if got != "rules.json" {
 		t.Fatalf("ResolvePath = %q, want rules.json", got)
+	}
+}
+
+func TestRuleMatchesProcessClassAndTitle(t *testing.T) {
+	rule := Rule{
+		Process:       "Code.exe",
+		Class:         "Chrome_WidgetWin_1",
+		TitleContains: "windows-transparent",
+		Opacity:       75,
+	}
+	win := window.Window{
+		Process: "code.exe",
+		Class:   "chrome_widgetwin_1",
+		Title:   "main.go - windows-transparent",
+	}
+
+	if !rule.Matches(win) {
+		t.Fatalf("rule did not match window")
+	}
+}
+
+func TestRuleMatchesDisabledRuleReturnsFalse(t *testing.T) {
+	rule := Rule{Process: "notepad.exe", Opacity: 70, Enabled: Bool(false)}
+	win := window.Window{Process: "notepad.exe"}
+
+	if rule.Matches(win) {
+		t.Fatalf("disabled rule matched window")
+	}
+}
+
+func TestRuleMatchesRejectsDifferentTitle(t *testing.T) {
+	rule := Rule{Process: "notepad.exe", TitleContains: "draft", Opacity: 70}
+	win := window.Window{Process: "notepad.exe", Title: "Untitled - Notepad"}
+
+	if rule.Matches(win) {
+		t.Fatalf("rule matched unrelated title")
+	}
+}
+
+func TestUpsertRuleUpdatesExistingSelector(t *testing.T) {
+	cfg := Config{Rules: []Rule{{Process: "Code.exe", Class: "Editor", TitleContains: "repo", Opacity: 60}}}
+
+	updated := cfg.UpsertRule(Rule{Process: "code.exe", Class: "editor", TitleContains: "REPO", Opacity: 85, Enabled: Bool(true)})
+
+	if !updated {
+		t.Fatalf("UpsertRule updated = false, want true")
+	}
+	if len(cfg.Rules) != 1 {
+		t.Fatalf("len(cfg.Rules) = %d, want 1", len(cfg.Rules))
+	}
+	if cfg.Rules[0].Opacity != 85 || !cfg.Rules[0].EnabledValue() {
+		t.Fatalf("updated rule = %#v", cfg.Rules[0])
 	}
 }
 

@@ -27,6 +27,7 @@ var (
 
 	procEnumWindows                = user32.NewProc("EnumWindows")
 	procGetLayeredWindowAttributes = user32.NewProc("GetLayeredWindowAttributes")
+	procGetClassNameW              = user32.NewProc("GetClassNameW")
 	procGetWindowLongPtrW          = user32.NewProc("GetWindowLongPtrW")
 	procGetWindowTextLengthW       = user32.NewProc("GetWindowTextLengthW")
 	procGetWindowTextW             = user32.NewProc("GetWindowTextW")
@@ -61,6 +62,7 @@ func ListVisible() ([]Window, error) {
 			ID:      fmt.Sprintf("0x%X", hwnd),
 			PID:     pid,
 			Process: processes[pid],
+			Class:   windowClass(hwnd),
 			Title:   windowText(hwnd),
 			Visible: true,
 			Backend: "windows",
@@ -208,6 +210,20 @@ func windowText(hwnd uintptr) string {
 
 	buffer := make([]uint16, int(length)+1)
 	ret, _, _ := procGetWindowTextW.Call(
+		hwnd,
+		uintptr(unsafe.Pointer(&buffer[0])),
+		uintptr(len(buffer)),
+	)
+	if ret == 0 {
+		return ""
+	}
+
+	return syscall.UTF16ToString(buffer[:ret])
+}
+
+func windowClass(hwnd uintptr) string {
+	buffer := make([]uint16, 256)
+	ret, _, _ := procGetClassNameW.Call(
 		hwnd,
 		uintptr(unsafe.Pointer(&buffer[0])),
 		uintptr(len(buffer)),
