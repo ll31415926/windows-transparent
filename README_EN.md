@@ -301,6 +301,14 @@ MD5 is provided only for compatibility with integrity-check workflows. Prefer SH
 - On Windows, controlling elevated windows may require running `wtrans` elevated as well.
 - Linux Wayland has no cross-desktop generic window opacity API, so support depends on the compositor and available tools.
 
+## Disclaimer
+
+- Use this tool only on systems where you have lawful access and permission to operate.
+- Avoid setting very low opacity on critical system windows or windows running important tasks.
+- This tool does not collect or upload user data; all operations are performed locally.
+- Window opacity behavior may vary depending on system permissions, desktop environment, window manager, and target application behavior.
+- The user is responsible for any misoperation, display issue, or workflow interruption caused by using this tool.
+
 ## Development and Verification
 
 ```bash
