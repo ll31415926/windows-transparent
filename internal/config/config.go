@@ -9,11 +9,15 @@ import (
 	"strings"
 
 	"windows-transparent/internal/opacity"
+	"windows-transparent/internal/window"
 )
 
 type Rule struct {
-	Process string `json:"process"`
-	Opacity int    `json:"opacity"`
+	Process       string `json:"process"`
+	Class         string `json:"class,omitempty"`
+	TitleContains string `json:"title_contains,omitempty"`
+	Opacity       int    `json:"opacity"`
+	Enabled       *bool  `json:"enabled,omitempty"`
 }
 
 type Config struct {
@@ -30,7 +34,8 @@ func DefaultPath() (string, error) {
 }
 
 func ResolvePath(path string) (string, error) {
-	if strings.TrimSpace(path) != "" {
+	path = strings.TrimSpace(path)
+	if path != "" {
 		return path, nil
 	}
 
@@ -63,11 +68,44 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
+func LoadOrEmpty(path string) (Config, error) {
+	resolved, err := ResolvePath(path)
+	if err != nil {
+		return Config{}, err
+	}
+
+	file, err := os.Open(resolved)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Config{}, nil
+		}
+
+		return Config{}, fmt.Errorf("open config %s: %w", resolved, err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	cfg, err := Parse(file)
+	if err != nil {
+		return Config{}, fmt.Errorf("parse config %s: %w", resolved, err)
+	}
+
+	return cfg, nil
+}
+
 func Parse(r io.Reader) (Config, error) {
 	var cfg Config
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&cfg); err != nil {
+		return Config{}, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Config{}, fmt.Errorf("unexpected extra JSON value")
+		}
 		return Config{}, err
 	}
 
@@ -121,4 +159,69 @@ func (c Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) UpsertRule(rule Rule) bool {
+	rule.Process = strings.TrimSpace(rule.Process)
+	rule.Class = strings.TrimSpace(rule.Class)
+	rule.TitleContains = strings.TrimSpace(rule.TitleContains)
+
+	for i := range c.Rules {
+		if c.Rules[i].SameSelector(rule) {
+			c.Rules[i].Process = rule.Process
+			c.Rules[i].Class = rule.Class
+			c.Rules[i].TitleContains = rule.TitleContains
+			c.Rules[i].Opacity = rule.Opacity
+			c.Rules[i].Enabled = rule.Enabled
+			return true
+		}
+	}
+
+	c.Rules = append(c.Rules, rule)
+	return false
+}
+
+func (r Rule) EnabledValue() bool {
+	return r.Enabled == nil || *r.Enabled
+}
+
+func (r Rule) Matches(win window.Window) bool {
+	if !r.EnabledValue() {
+		return false
+	}
+	if !strings.EqualFold(strings.TrimSpace(r.Process), strings.TrimSpace(win.Process)) {
+		return false
+	}
+	if strings.TrimSpace(r.Class) != "" && !strings.EqualFold(strings.TrimSpace(r.Class), strings.TrimSpace(win.Class)) {
+		return false
+	}
+
+	titleContains := strings.TrimSpace(r.TitleContains)
+	if titleContains != "" && !strings.Contains(strings.ToLower(win.Title), strings.ToLower(titleContains)) {
+		return false
+	}
+
+	return true
+}
+
+func (r Rule) SameSelector(other Rule) bool {
+	return strings.EqualFold(strings.TrimSpace(r.Process), strings.TrimSpace(other.Process)) &&
+		strings.EqualFold(strings.TrimSpace(r.Class), strings.TrimSpace(other.Class)) &&
+		strings.EqualFold(strings.TrimSpace(r.TitleContains), strings.TrimSpace(other.TitleContains))
+}
+
+func (r Rule) Describe() string {
+	parts := []string{fmt.Sprintf("process=%q", strings.TrimSpace(r.Process))}
+	if strings.TrimSpace(r.Class) != "" {
+		parts = append(parts, fmt.Sprintf("class=%q", strings.TrimSpace(r.Class)))
+	}
+	if strings.TrimSpace(r.TitleContains) != "" {
+		parts = append(parts, fmt.Sprintf("title_contains=%q", strings.TrimSpace(r.TitleContains)))
+	}
+
+	return strings.Join(parts, " ")
+}
+
+func Bool(value bool) *bool {
+	return &value
 }
