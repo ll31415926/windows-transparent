@@ -30,7 +30,8 @@ func DefaultPath() (string, error) {
 }
 
 func ResolvePath(path string) (string, error) {
-	if strings.TrimSpace(path) != "" {
+	path = strings.TrimSpace(path)
+	if path != "" {
 		return path, nil
 	}
 
@@ -68,6 +69,13 @@ func Parse(r io.Reader) (Config, error) {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&cfg); err != nil {
+		return Config{}, err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return Config{}, fmt.Errorf("unexpected extra JSON value")
+		}
 		return Config{}, err
 	}
 

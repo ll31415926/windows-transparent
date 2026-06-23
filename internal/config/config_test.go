@@ -48,6 +48,24 @@ func TestParseRejectsMissingProcess(t *testing.T) {
 	}
 }
 
+func TestParseRejectsTrailingJSON(t *testing.T) {
+	_, err := Parse(strings.NewReader(`{"rules": []} {"rules": []}`))
+	if err == nil {
+		t.Fatal("Parse returned nil error, want trailing JSON error")
+	}
+}
+
+func TestResolvePathTrimsExplicitPath(t *testing.T) {
+	got, err := ResolvePath("  rules.json  ")
+	if err != nil {
+		t.Fatalf("ResolvePath returned error: %v", err)
+	}
+
+	if got != "rules.json" {
+		t.Fatalf("ResolvePath = %q, want rules.json", got)
+	}
+}
+
 func TestSaveCreatesConfigFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "wtrans", "config.json")
 	cfg := Config{

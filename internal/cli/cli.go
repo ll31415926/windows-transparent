@@ -9,12 +9,15 @@ import (
 
 	"windows-transparent/internal/config"
 	"windows-transparent/internal/opacity"
+	"windows-transparent/internal/version"
 	"windows-transparent/internal/window"
 )
 
 type CommandName string
 
 const (
+	CommandHelp           CommandName = "help"
+	CommandVersion        CommandName = "version"
 	CommandList           CommandName = "list"
 	CommandSet            CommandName = "set"
 	CommandRestore        CommandName = "restore"
@@ -66,6 +69,12 @@ func Execute(args []string, stdout io.Writer) error {
 	}
 
 	switch cmd.Name {
+	case CommandHelp:
+		PrintUsage(stdout)
+		return nil
+	case CommandVersion:
+		version.Print(stdout)
+		return nil
 	case CommandList:
 		return listWindows(stdout, cmd.Process)
 	case CommandSet:
@@ -89,6 +98,12 @@ func Parse(args []string) (Command, error) {
 	}
 
 	switch args[0] {
+	case "-h", "--help", string(CommandHelp):
+		return Command{Name: CommandHelp}, nil
+
+	case "-v", "--version", string(CommandVersion):
+		return Command{Name: CommandVersion}, nil
+
 	case string(CommandList):
 		fs := newFlagSet("list")
 		process := fs.String("process", "", "process name")
@@ -186,6 +201,8 @@ func Parse(args []string) (Command, error) {
 
 func PrintUsage(w io.Writer) {
 	fmt.Fprintln(w, `Usage:
+  wtrans help
+  wtrans version
   wtrans list [--process notepad.exe]
   wtrans set --process notepad.exe --opacity 70
   wtrans restore --process notepad.exe
@@ -194,7 +211,7 @@ func PrintUsage(w io.Writer) {
   wtrans gnome-extension install
   wtrans gnome-extension status
 
-Opacity is a percent from 20 to 100. Process names are matched case-insensitively.`)
+Opacity is a percent from 20 to 100. Process names and window classes are matched case-insensitively.`)
 }
 
 func listWindows(stdout io.Writer, process string) error {

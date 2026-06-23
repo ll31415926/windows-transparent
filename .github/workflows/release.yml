@@ -1,0 +1,146 @@
+name: Release
+
+"on":
+  push:
+    tags:
+      - "v*"
+      - "V*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          safe_tag="$(printf '%s' "$tag" | tr -c 'A-Za-z0-9._-' '-')"
+          commit="$(git rev-parse HEAD)"
+          build_date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          ldflags="-s -w -X windows-transparent/internal/version.Version=${tag} -X windows-transparent/internal/version.Commit=${commit} -X windows-transparent/internal/version.Date=${build_date}"
+
+          targets=(
+            "windows/amd64"
+            "windows/386"
+            "windows/arm64"
+            "linux/amd64"
+            "linux/arm64"
+          )
+
+          rm -rf build dist
+          mkdir -p build dist
+
+          for target in "${targets[@]}"; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            package_dir="build/wtrans_${safe_tag}_${os}_${arch}"
+            mkdir -p "$package_dir"
+
+            binary="wtrans"
+            if [[ "$os" == "windows" ]]; then
+              binary="wtrans.exe"
+            fi
+
+            echo "building ${os}/${arch}"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$ldflags" -o "${package_dir}/${binary}" ./cmd/wtrans
+            cp LICENSE README.md README_EN.md "$package_dir/"
+
+            asset_base="dist/wtrans_${safe_tag}_${os}_${arch}"
+            if [[ "$os" == "windows" ]]; then
+              python3 - "$package_dir" "${asset_base}.zip" <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          source = pathlib.Path(sys.argv[1])
+          output = pathlib.Path(sys.argv[2])
+          with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+              for path in sorted(source.rglob("*")):
+                  if path.is_file():
+                      archive.write(path, path.relative_to(source))
+          PY
+            else
+              tar -C "$package_dir" -czf "${asset_base}.tar.gz" .
+            fi
+          done
+
+          (
+            cd dist
+            mapfile -t assets < <(find . -maxdepth 1 -type f -name 'wtrans_*' -printf '%f\n' | sort)
+            sha256sum "${assets[@]}" > SHA256SUMS.txt
+            md5sum "${assets[@]}" > MD5SUMS.txt
+          )
+
+          current_commit="$(git rev-list -n 1 "$tag")"
+          previous_tag="$(git describe --tags --abbrev=0 "${current_commit}^" 2>/dev/null || true)"
+          if [[ -n "$previous_tag" ]]; then
+            commit_range="${previous_tag}..${tag}"
+          else
+            commit_range="${tag}"
+          fi
+
+          {
+            echo "# wtrans ${tag}"
+            echo
+            echo "Source commit: \`${commit}\`"
+            echo
+            echo "## Windows asset selection"
+            echo
+            echo "- \`windows_amd64\`: 64-bit Intel/AMD Windows"
+            echo "- \`windows_386\`: 32-bit Windows"
+            echo "- \`windows_arm64\`: Windows on ARM64"
+            echo
+            echo "## Commits"
+            echo
+            if [[ -n "$previous_tag" ]]; then
+              echo "Changes since \`${previous_tag}\`:"
+            else
+              echo "Initial tagged release commits:"
+            fi
+            git log --pretty=format:'- `%h` %s' "$commit_range"
+            echo
+            echo
+            echo "## SHA256"
+            echo
+            echo '```text'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+            echo
+            echo "## MD5"
+            echo
+            echo '```text'
+            cat dist/MD5SUMS.txt
+            echo '```'
+          } > dist/release-notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/wtrans_* \
+            dist/SHA256SUMS.txt \
+            dist/MD5SUMS.txt \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file dist/release-notes.md \
+            --verify-tag

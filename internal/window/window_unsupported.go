@@ -9,7 +9,7 @@ import (
 	"runtime"
 )
 
-var ErrUnsupported = errors.New("wtrans is only supported on Windows")
+var ErrUnsupported = errors.New("wtrans is only supported on Windows and Linux")
 
 func ListVisible() ([]Window, error) {
 	return nil, ErrUnsupported

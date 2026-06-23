@@ -19,6 +19,28 @@ func TestParseSetCommand(t *testing.T) {
 	}
 }
 
+func TestParseHelpCommand(t *testing.T) {
+	cmd, err := Parse([]string{"--help"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+
+	if cmd.Name != CommandHelp {
+		t.Fatalf("cmd.Name = %q, want %q", cmd.Name, CommandHelp)
+	}
+}
+
+func TestParseVersionCommand(t *testing.T) {
+	cmd, err := Parse([]string{"version"})
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+
+	if cmd.Name != CommandVersion {
+		t.Fatalf("cmd.Name = %q, want %q", cmd.Name, CommandVersion)
+	}
+}
+
 func TestParseListCommandWithProcess(t *testing.T) {
 	cmd, err := Parse([]string{"list", "--process=Code.exe"})
 	if err != nil {
