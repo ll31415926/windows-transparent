@@ -46,6 +46,10 @@ go build -o wtrans ./cmd/wtrans
 
 # Verify
 ./wtrans -h
+
+# Optional: use the beginner-friendly menu
+# Windows: wtrans-setup.bat
+# Linux: ./wtrans-setup.sh
 ```
 
 ### Basic Usage
@@ -59,8 +63,20 @@ go build -o wtrans ./cmd/wtrans
 # Set a window's opacity to 65%
 ./wtrans set --process notepad.exe --opacity 65
 
+# Set and keep newly opened matching windows at the same opacity
+./wtrans set --process notepad.exe --opacity 65 --persist
+
 # Restore a window to fully opaque
 ./wtrans restore --process notepad.exe
+
+# Check saved rules and whether the background keeper is running
+./wtrans status
+
+# Stop the background keeper without removing saved rules
+./wtrans stop
+
+# Clear all saved rules and stop the background keeper
+./wtrans reset
 
 # Apply opacity rules from a config file
 ./wtrans apply --config config.json
@@ -111,6 +127,7 @@ Set the opacity for all visible windows matching a process name.
 |------|-------------|---------|
 | `--process` | Target process name (required, case-insensitive) | `--process Code.exe` |
 | `--opacity` | Opacity percentage, range 20–100 (required) | `--opacity 75` |
+| `--persist` | Save the rule and start a background watcher so newly opened matching windows keep the same opacity | `--persist` |
 
 ```bash
 # Set VS Code to 85% opacity
@@ -118,10 +135,13 @@ Set the opacity for all visible windows matching a process name.
 
 # Make Notepad semi-transparent
 ./wtrans set --process notepad.exe --opacity 50
+
+# Keep future Notepad windows at 65% opacity until restored
+./wtrans set --process notepad.exe --opacity 65 --persist
 ```
 
 ### restore
-Restore the specified process windows to fully opaque (100%) and intelligently remove layered window styles.
+Restore the specified process windows to fully opaque (100%). If a saved keep-transparent rule exists, it is removed too.
 
 | Flag | Description | Example |
 |------|-------------|---------|
@@ -130,6 +150,28 @@ Restore the specified process windows to fully opaque (100%) and intelligently r
 ```bash
 # Restore VS Code to fully opaque
 ./wtrans restore --process Code.exe
+```
+
+### status
+Show the config path, saved rules, and whether the background keeper is running.
+
+```bash
+./wtrans status
+./wtrans status --config rules.json
+```
+
+### stop
+Stop the background keeper but keep all saved rules.
+
+```bash
+./wtrans stop
+```
+
+### reset
+Stop the background keeper, clear all saved rules, and restore any visible matching windows when possible.
+
+```bash
+./wtrans reset
 ```
 
 ### apply
@@ -149,6 +191,18 @@ Load a JSON config file and apply all opacity rules.
 
 # Specify a config file path
 ./wtrans apply --config /home/user/my_rules.json
+```
+
+### watch
+Continuously apply rules from the default or specified config file. This is started automatically by `set --persist`, but can also be run manually.
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--config` | Config file path (optional) | `--config rules.json` |
+
+```bash
+./wtrans watch
+./wtrans watch --config rules.json
 ```
 
 ### diagnose
@@ -344,7 +398,8 @@ WTRANS_BACKEND=x11 ./wtrans list
 ### General
 - **Opacity range** — Limited to 20–100; values below 20% may make windows hard to interact with
 - **Immediate effect** — Opacity changes take effect instantly, no app restart needed
-- **Non-persistent** — Opacity resets when the target application restarts; re-apply as needed
+- **Persistence** — Use `set --persist` to keep applying a rule to newly opened matching windows; use `restore --process ...` to remove that persistent rule
+- **Beginner mode** — Use `wtrans-setup.bat` on Windows or `./wtrans-setup.sh` on Linux for a simple menu
 - **Environment variable** — Use `WTRANS_BACKEND` to force a specific backend (e.g., `WTRANS_BACKEND=x11`)
 
 <br/>

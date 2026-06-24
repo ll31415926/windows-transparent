@@ -46,6 +46,10 @@ go build -o wtrans ./cmd/wtrans
 
 # 验证安装
 ./wtrans -h
+
+# 小白也能直接用的菜单
+# Windows：wtrans-setup.bat
+# Linux：./wtrans-setup.sh
 ```
 
 ### 基础使用
@@ -59,8 +63,20 @@ go build -o wtrans ./cmd/wtrans
 # 设置窗口透明度为 65%
 ./wtrans set --process notepad.exe --opacity 65
 
+# 设置并让后续新打开的同名窗口保持相同透明度
+./wtrans set --process notepad.exe --opacity 65 --persist
+
 # 恢复窗口为完全不透明
 ./wtrans restore --process notepad.exe
+
+# 查看保存的规则和后台状态
+./wtrans status
+
+# 停止后台保持器，但保留规则
+./wtrans stop
+
+# 清空所有规则并停止后台保持器
+./wtrans reset
 
 # 从配置文件批量应用透明度规则
 ./wtrans apply --config config.json
@@ -111,6 +127,7 @@ go build -o wtrans ./cmd/wtrans
 |------|------|------|
 | `--process` | 目标进程名（必填，不区分大小写） | `--process Code.exe` |
 | `--opacity` | 不透明度百分比，范围 20-100（必填） | `--opacity 75` |
+| `--persist` | 保存规则并启动后台监视，让后续新打开的同名窗口保持相同透明度 | `--persist` |
 
 ```bash
 # 将 VS Code 窗口设置为 85% 不透明度
@@ -118,10 +135,13 @@ go build -o wtrans ./cmd/wtrans
 
 # 将记事本设置为半透明
 ./wtrans set --process notepad.exe --opacity 50
+
+# 让后续新打开的记事本窗口也保持 65% 不透明度
+./wtrans set --process notepad.exe --opacity 65 --persist
 ```
 
 ### restore 命令
-恢复指定进程窗口为完全不透明（100%），并智能移除分层窗口样式。
+恢复指定进程窗口为完全不透明（100%）。如果有保存的持久规则，也会一起取消。
 
 | 参数 | 说明 | 示例 |
 |------|------|------|
@@ -130,6 +150,28 @@ go build -o wtrans ./cmd/wtrans
 ```bash
 # 恢复 VS Code 窗口为完全不透明
 ./wtrans restore --process Code.exe
+```
+
+### status 命令
+查看配置路径、已保存的规则，以及后台保持器是否正在运行。
+
+```bash
+./wtrans status
+./wtrans status --config rules.json
+```
+
+### stop 命令
+停止后台保持器，但保留所有已保存规则。
+
+```bash
+./wtrans stop
+```
+
+### reset 命令
+停止后台保持器，清空所有已保存规则，并尽量恢复当前可见的对应窗口。
+
+```bash
+./wtrans reset
 ```
 
 ### apply 命令
@@ -149,6 +191,18 @@ go build -o wtrans ./cmd/wtrans
 
 # 指定配置文件路径
 ./wtrans apply --config /home/user/my_rules.json
+```
+
+### watch 命令
+持续应用默认或指定配置文件中的透明度规则。`set --persist` 会自动启动它，也可以手动运行。
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `--config` | 配置文件路径（可选） | `--config rules.json` |
+
+```bash
+./wtrans watch
+./wtrans watch --config rules.json
 ```
 
 ### diagnose 命令
@@ -344,7 +398,8 @@ WTRANS_BACKEND=x11 ./wtrans list
 ### 通用说明
 - **透明度范围**：透明度值限制在 20-100 之间，低于 20% 可能导致窗口难以交互
 - **即时生效**：透明度设置立即生效，无需重启目标应用
-- **非持久化**：透明度设置在目标应用重启后会恢复默认，需重新应用
+- **持久化**：使用 `set --persist` 可让后续新打开的同名窗口持续应用规则；使用 `restore --process ...` 可删除该持久规则
+- **小白模式**：Windows 用 `wtrans-setup.bat`，Linux 用 `./wtrans-setup.sh`
 - **环境变量**：可通过 `WTRANS_BACKEND` 强制指定后端（如 `WTRANS_BACKEND=x11`）
 
 <br/>
