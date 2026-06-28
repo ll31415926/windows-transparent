@@ -2,6 +2,14 @@
 
 # 🪟 wtrans — Window Transparency Tool
 
+## 📸 Screenshots
+
+![wtrans GUI Console](docs/assets/screenshots/gui-overview.png)
+
+wtrans GUI Console: visible window list on the left, opacity slider and persistence rules on the right
+<!-- runtime-screenshots:end -->
+
+
 <p align="center">
   <img alt="Go" src="https://img.shields.io/badge/Go-1.24%2B-blue">
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-green">
@@ -41,10 +49,16 @@ git clone https://github.com/ll31415926/windows-transparent.git
 # Enter the project directory
 cd windows-transparent
 
-# Build
+# Build the CLI
 go build -o wtrans ./cmd/wtrans
 
-# Verify
+# Build the GUI (recommended when Wails CLI is installed)
+wails build
+
+# If the wails command is not available, use the equivalent Go build command
+go build -tags "desktop,production" -ldflags "-w -s -H windowsgui" -o wtrans-gui.exe ./cmd/wtrans-gui
+
+# Verify the CLI
 ./wtrans -h
 
 # Optional: use the beginner-friendly menu

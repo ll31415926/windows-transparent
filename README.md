@@ -2,6 +2,15 @@
 
 # 🪟 wtrans 窗口透明度工具
 
+
+## 📸 界面预览
+
+![wtrans GUI 控制台](docs/assets/screenshots/gui-overview.png)
+
+wtrans GUI 控制台：左侧可见窗口列表，右侧透明度滑块和持久化规则
+<!-- runtime-screenshots:end -->
+
+
 <p align="center">
   <img alt="Go版本" src="https://img.shields.io/badge/Go-1.24%2B-blue">
   <img alt="平台支持" src="https://img.shields.io/badge/平台-Windows%20%7C%20Linux-green">
@@ -41,10 +50,16 @@ git clone https://github.com/ll31415926/windows-transparent.git
 # 进入项目目录
 cd windows-transparent
 
-# 编译项目
+# 编译 CLI
 go build -o wtrans ./cmd/wtrans
 
-# 验证安装
+# 编译 GUI（推荐使用 Wails CLI）
+wails build
+
+# 如果本机没有 wails 命令，可使用等价的 Go 构建命令
+go build -tags "desktop,production" -ldflags "-w -s -H windowsgui" -o wtrans-gui.exe ./cmd/wtrans-gui
+
+# 验证 CLI 安装
 ./wtrans -h
 
 # 小白也能直接用的菜单

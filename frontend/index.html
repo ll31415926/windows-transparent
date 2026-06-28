@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wtrans GUI Design</title>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --surface: rgba(255, 255, 255, 0.72);
+      --surface-strong: rgba(255, 255, 255, 0.92);
+      --surface-soft: rgba(255, 255, 255, 0.55);
+      --line: rgba(40, 43, 52, 0.12);
+      --line-strong: rgba(40, 43, 52, 0.2);
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --faint: #8e8e93;
+      --accent: #0071e3;
+      --accent-strong: #0057b8;
+      --accent-soft: rgba(0, 113, 227, 0.11);
+      --good: #2a7d4f;
+      --warn: #b76e00;
+      --danger: #c7372f;
+      --shadow: 0 24px 70px rgba(37, 43, 58, 0.16);
+      --shadow-soft: 0 12px 34px rgba(37, 43, 58, 0.1);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      --font-mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #000000;
+      --surface-strong: #101012;
+      --surface-soft: rgba(255, 255, 255, 0.05);
+      --line: rgba(255, 255, 255, 0.1);
+      --line-strong: rgba(255, 255, 255, 0.18);
+      --text: #f5f5f7;
+      --muted: #a1a1a8;
+      --faint: #6f6f78;
+      --accent: #0a84ff;
+      --accent-strong: #5eb0ff;
+      --accent-soft: rgba(10, 132, 255, 0.16);
+      --good: #30d158;
+      --warn: #ffd60a;
+      --danger: #ff453a;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.76);
+      --shadow-soft: 0 12px 34px rgba(0, 0, 0, 0.48);
+      --font-ui: "Aptos", "Segoe UI", "Microsoft YaHei", sans-serif;
+      --font-mono: "Cascadia Code", "SF Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-ui);
+      letter-spacing: 0;
+      transition: background 240ms ease, color 180ms ease;
+    }
+
+    body[data-theme="dark"] {
+      background: transparent;
+    }
+
+    button,
+    input {
+      font: inherit;
+      --wails-draggable: no-drag;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 18% 10%, rgba(0, 113, 227, 0.12), transparent 28rem),
+        linear-gradient(145deg, var(--bg), color-mix(in oklab, var(--bg) 92%, var(--accent) 8%));
+    }
+
+    body[data-theme="dark"] .app {
+      background: #000000;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(250px, 292px) minmax(0, 1fr);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      backdrop-filter: blur(28px) saturate(1.25);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border-right: 1px solid var(--line);
+      background: color-mix(in oklab, var(--surface-soft) 76%, var(--bg) 24%);
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 10px;
+      padding: 12px 14px 10px;
+      --wails-draggable: drag;
+    }
+
+    .brand-titlebar {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .window-controls {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: max-content;
+      --wails-draggable: no-drag;
+    }
+
+    .window-control {
+      position: relative;
+      width: 11px;
+      height: 11px;
+      border: 0;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+    }
+
+    .window-control.close {
+      background: #ff5f57;
+    }
+
+    .window-control.minimize {
+      background: #ffbd2e;
+    }
+
+    .window-control.maximize {
+      background: #28c840;
+    }
+
+    .window-control::after {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(68, 39, 36, 0.72);
+      font-family: var(--font-ui);
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .window-controls:hover .window-control::after {
+      opacity: 1;
+    }
+
+    .window-control.close::after {
+      content: "x";
+    }
+
+    .window-control.minimize::after {
+      content: "-";
+    }
+
+    .window-control.maximize::after {
+      content: "+";
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border-radius: 8px;
+      background: linear-gradient(145deg, var(--accent), color-mix(in oklab, var(--accent) 70%, white 30%));
+      color: white;
+      box-shadow: 0 10px 24px color-mix(in oklab, var(--accent) 32%, transparent);
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-copy h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 720;
+      letter-spacing: 0;
+      line-height: 1.1;
+    }
+
+    .brand-copy p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.3;
+      text-wrap: pretty;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface-strong);
+      color: var(--text);
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .icon-button:hover,
+    .compact-action:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: color-mix(in oklab, var(--surface-strong) 82%, var(--accent) 18%);
+    }
+
+    .icon-button:active,
+    .compact-action:active,
+    .primary-action:active,
+    .secondary-action:active {
+      transform: translateY(0) scale(0.98);
+    }
+
+    .search {
+      display: block;
+      position: relative;
+      margin: 0 12px 10px;
+    }
+
+    .search i,
+    .search svg {
+      position: absolute;
+      top: 50%;
+      left: 11px;
+      width: 14px;
+      height: 14px;
+      color: var(--faint);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .search input {
+      width: 100%;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      background: var(--surface-strong);
+      color: var(--text);
+      padding: 0 10px 0 32px;
+      font-size: 13px;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .search input:focus {
+      border-color: color-mix(in oklab, var(--accent) 60%, var(--line) 40%);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .nav-section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 0 10px 10px;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px 6px;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .window-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .window-list li {
+      display: flex;
+      width: 100%;
+    }
+
+    .window-item {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 44px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .window-item:hover {
+      background: var(--surface-soft);
+      border-color: var(--line);
+      transform: translateY(-1px);
+    }
+
+    .window-item[aria-selected="true"] {
+      background: var(--surface-strong);
+      border-color: color-mix(in oklab, var(--accent) 48%, var(--line) 52%);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .app-icon {
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+
+    .app-icon.dev {
+      background: rgba(0, 113, 227, 0.12);
+      color: #0071e3;
+    }
+
+    body[data-theme="dark"] .app-icon.dev {
+      background: rgba(10, 132, 255, 0.18);
+      color: #5eb0ff;
+    }
+
+    .app-icon.doc {
+      background: rgba(175, 122, 32, 0.12);
+      color: #af7a20;
+    }
+
+    body[data-theme="dark"] .app-icon.doc {
+      background: rgba(255, 214, 10, 0.15);
+      color: #ffd60a;
+    }
+
+    .app-icon.web {
+      background: rgba(175, 82, 222, 0.12);
+      color: #af52de;
+    }
+
+    body[data-theme="dark"] .app-icon.web {
+      background: rgba(191, 90, 242, 0.18);
+      color: #bf5af2;
+    }
+
+    .app-icon.term {
+      background: rgba(36, 138, 61, 0.12);
+      color: #248a3d;
+    }
+
+    body[data-theme="dark"] .app-icon.term {
+      background: rgba(48, 209, 88, 0.15);
+      color: #30d158;
+    }
+
+    .window-meta {
+      min-width: 0;
+    }
+
+    .window-meta strong,
+    .rule-process {
+      display: block;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 710;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .window-meta span,
+    .rule-sub,
+    .tiny {
+      display: block;
+      overflow: hidden;
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .opacity-pill {
+      display: inline-flex;
+      min-width: 40px;
+      height: 22px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sidebar-footer {
+      display: grid;
+      gap: 8px;
+      margin-top: auto;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .status-copy {
+      min-width: 0;
+    }
+
+    .status-copy strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .status-copy span {
+      display: block;
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--good) 20%, transparent);
+    }
+
+    .content {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      min-width: 0;
+      overflow: hidden;
+      background: color-mix(in oklab, var(--surface-strong) 28%, transparent);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      --wails-draggable: drag;
+    }
+
+    .title-block {
+      min-width: 0;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 760;
+      letter-spacing: 0;
+      line-height: 1.1;
+      text-wrap: pretty;
+    }
+
+    .title-block p {
+      max-width: 600px;
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      text-wrap: pretty;
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      min-width: 148px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+    }
+
+    .segmented button {
+      display: inline-flex;
+      height: 30px;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 660;
+      transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: var(--surface-strong);
+      color: var(--text);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-rows: auto minmax(140px, 1fr);
+      gap: 10px;
+      min-height: 0;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface-strong);
+      overflow: hidden;
+    }
+
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      color: var(--accent-strong);
+      font-size: 10px;
+      font-weight: 780;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow i {
+      width: 12px;
+      height: 12px;
+    }
+
+    .panel-title h3 {
+      margin: 0;
+      overflow: hidden;
+      font-size: 16px;
+      font-weight: 760;
+      letter-spacing: 0;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      text-wrap: pretty;
+    }
+
+    .panel-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+      text-wrap: pretty;
+    }
+
+    .badge-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      min-height: 22px;
+      align-items: center;
+      gap: 5px;
+      padding: 0 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 660;
+      white-space: nowrap;
+    }
+
+    .badge i {
+      width: 12px;
+      height: 12px;
+    }
+
+    .preview-band {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .glass-demo {
+      display: none;
+    }
+
+    .demo-window {
+      width: min(320px, 92%);
+      min-height: 64px;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: color-mix(in oklab, var(--surface-strong) var(--selected-opacity-pct), transparent);
+      box-shadow: 0 14px 40px color-mix(in oklab, var(--text) 14%, transparent);
+      backdrop-filter: blur(18px);
+      transition: background 180ms ease, opacity 180ms ease;
+    }
+
+    .demo-window:nth-child(2) {
+      justify-self: end;
+      width: min(240px, 80%);
+      min-height: 46px;
+      opacity: 0.78;
+    }
+
+    .demo-chrome {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .traffic {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+
+    .traffic:nth-child(1) {
+      background: #ff5f57;
+    }
+
+    .traffic:nth-child(2) {
+      background: #ffbd2e;
+    }
+
+    .traffic:nth-child(3) {
+      background: #28c840;
+    }
+
+    .demo-lines {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .demo-line {
+      height: 7px;
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--text) 14%, transparent);
+    }
+
+    .demo-line.short {
+      width: 54%;
+    }
+
+    .demo-line.medium {
+      width: 76%;
+    }
+
+    .slider-panel {
+      display: grid;
+      align-content: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .opacity-readout {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .opacity-readout strong {
+      color: var(--text);
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 780;
+      letter-spacing: 0;
+      line-height: 0.94;
+    }
+
+    .opacity-readout span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      accent-color: var(--accent);
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--faint);
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .quick-values {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .chip {
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-strong);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .chip:hover {
+      border-color: color-mix(in oklab, var(--accent) 45%, var(--line) 55%);
+      background: var(--accent-soft);
+      transform: translateY(-1px);
+    }
+
+    .control-body {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .command-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .primary-action,
+    .secondary-action {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 720;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease, border-color 160ms ease;
+    }
+
+    .primary-action {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 8px 20px color-mix(in oklab, var(--accent) 26%, transparent);
+    }
+
+    .primary-action:hover {
+      background: var(--accent-strong);
+    }
+
+    .secondary-action {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      color: var(--text);
+    }
+
+    .secondary-action:hover {
+      border-color: var(--line-strong);
+      background: var(--accent-soft);
+    }
+
+    .primary-action i,
+    .secondary-action i,
+    .compact-action i {
+      width: 15px;
+      height: 15px;
+    }
+
+    .switch-row,
+    .info-strip {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+
+    .switch-copy {
+      min-width: 0;
+    }
+
+    .switch-copy strong,
+    .info-strip strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 730;
+    }
+
+    .switch-copy span,
+    .info-strip span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      text-wrap: pretty;
+    }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 26px;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--faint) 25%, transparent);
+      transition: background 160ms ease;
+    }
+
+    .switch[aria-checked="true"] {
+      background: var(--accent);
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+      transition: transform 160ms ease;
+    }
+
+    .switch[aria-checked="true"]::after {
+      transform: translateX(20px);
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .terminal-panel {
+      display: none;
+    }
+
+    .rules-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .compact-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .compact-head h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .compact-head p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .compact-action {
+      display: inline-grid;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-soft);
+      color: var(--text);
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .rule-list {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      margin: 0;
+      padding: 10px;
+      list-style: none;
+    }
+
+    .rule-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+
+    .rule-delete {
+      display: inline-grid;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-strong);
+      color: var(--danger);
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    .rule-delete:hover {
+      background: color-mix(in oklab, var(--danger) 12%, var(--surface-strong));
+      border-color: var(--danger);
+    }
+
+    .rule-delete i {
+      width: 14px;
+      height: 14px;
+    }
+
+    .rule-meter {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+      min-width: 100px;
+    }
+
+    .meter-track {
+      width: 60px;
+      height: 6px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--faint) 20%, transparent);
+    }
+
+    .meter-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+    }
+
+    .rule-value {
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .terminal-panel {
+      overflow: hidden;
+    }
+
+    .terminal {
+      display: grid;
+      gap: 6px;
+      padding: 14px;
+      background: color-mix(in oklab, var(--bg) 82%, black 18%);
+      color: color-mix(in oklab, var(--text) 90%, var(--accent) 10%);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .terminal-line {
+      display: flex;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .terminal-prompt {
+      flex: 0 0 auto;
+      color: var(--accent-strong);
+    }
+
+    .terminal-code {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .diagnostics {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .diagnostic {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+
+    .diagnostic span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .diagnostic strong {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 760;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      display: none;
+      padding: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      text-wrap: pretty;
+    }
+
+    .window-list[data-empty="true"] + .empty-state {
+      display: block;
+    }
+
+    /* Scrollbar styling */
+    .control-body::-webkit-scrollbar,
+    .rule-list::-webkit-scrollbar,
+    .window-list::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .control-body::-webkit-scrollbar-track,
+    .rule-list::-webkit-scrollbar-track,
+    .window-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .control-body::-webkit-scrollbar-thumb,
+    .rule-list::-webkit-scrollbar-thumb,
+    .window-list::-webkit-scrollbar-thumb {
+      background: var(--line-strong);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 820px) {
+      .shell {
+        grid-template-columns: 1fr;
+        max-height: none;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .window-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: 200px;
+      }
+
+      .sidebar-footer {
+        display: none;
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .close-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(6px);
+    }
+
+    .close-overlay.open {
+      display: flex;
+    }
+
+    .close-dialog {
+      width: 340px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface-strong);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    }
+
+    .close-dialog h2 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 650;
+    }
+
+    .close-dialog p {
+      margin: 0 0 16px;
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .close-dialog .actions {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .close-dialog .btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-soft);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 550;
+      cursor: pointer;
+      transition: background 140ms ease, border-color 140ms ease;
+    }
+
+    .close-dialog .btn:hover {
+      background: color-mix(in oklab, var(--accent) 8%, var(--surface-soft));
+      border-color: var(--accent);
+    }
+
+    .close-dialog .btn.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .close-dialog .btn.primary:hover {
+      background: color-mix(in oklab, var(--accent) 85%, #000 15%);
+    }
+
+    .close-dialog .btn i {
+      width: 16px;
+      height: 16px;
+    }
+
+    .close-dialog .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 4px;
+      color: var(--faint);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .close-dialog .remember input {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    @media (max-width: 720px) {
+      .app {
+        border-radius: 0;
+      }
+
+      .brand,
+      .topbar,
+      .panel-head,
+      .preview-band,
+      .control-body {
+        padding: 12px;
+      }
+
+      .topbar,
+      .panel-head,
+      .preview-band {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .topbar,
+      .preview-band,
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .window-list,
+      .command-row,
+      .diagnostics {
+        grid-template-columns: 1fr;
+      }
+
+      .top-actions {
+        justify-content: stretch;
+      }
+
+      .segmented {
+        width: 100%;
+      }
+
+      .command-row {
+        gap: 8px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light" style="--selected-opacity-pct: 82%;">
+  <main class="app">
+    <section class="shell" aria-label="wtrans GUI">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-titlebar">
+            <div class="window-controls" aria-label="窗口控制">
+              <button id="windowCloseButton" class="window-control close" type="button" title="关闭" aria-label="关闭"></button>
+              <button id="windowMinButton" class="window-control minimize" type="button" title="最小化" aria-label="最小化"></button>
+              <button id="windowMaxButton" class="window-control maximize" type="button" title="放大" aria-label="放大"></button>
+            </div>
+            <div class="brand-identity">
+              <div class="brand-mark" aria-hidden="true"><i data-lucide="layout"></i></div>
+              <div class="brand-copy">
+                <h1>wtrans</h1>
+                <p>窗口透明度控制台</p>
+              </div>
+            </div>
+          </div>
+          <button id="refreshButton" class="icon-button" type="button" title="刷新窗口列表" aria-label="刷新窗口列表">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+
+        <label class="search">
+          <i data-lucide="search"></i>
+          <input id="searchInput" type="search" placeholder="搜索进程或标题" autocomplete="off">
+        </label>
+
+        <nav class="nav-section" aria-label="可见窗口">
+          <div class="section-label">
+            <span>可见窗口</span>
+            <span id="windowCount">4</span>
+          </div>
+          <ul id="windowList" class="window-list">
+            <li>
+              <button class="window-item" type="button" aria-selected="true" data-process="Code.exe" data-title="main.go - windows-transparent" data-opacity="82" data-backend="win32" data-pid="5678">
+                <i data-lucide="code-2" class="app-icon dev"></i>
+                <span class="window-meta">
+                  <strong>Code.exe</strong>
+                  <span>main.go - windows-transparent</span>
+                </span>
+                <span class="opacity-pill">82%</span>
+              </button>
+            </li>
+            <li>
+              <button class="window-item" type="button" data-process="notepad.exe" data-title="Untitled - Notepad" data-opacity="65" data-backend="win32" data-pid="9012">
+                <i data-lucide="file-text" class="app-icon doc"></i>
+                <span class="window-meta">
+                  <strong>notepad.exe</strong>
+                  <span>Untitled - Notepad</span>
+                </span>
+                <span class="opacity-pill">65%</span>
+              </button>
+            </li>
+            <li>
+              <button class="window-item" type="button" data-process="firefox" data-title="Mozilla Firefox" data-opacity="90" data-backend="x11" data-pid="1234">
+                <i data-lucide="globe" class="app-icon web"></i>
+                <span class="window-meta">
+                  <strong>firefox</strong>
+                  <span>Mozilla Firefox</span>
+                </span>
+                <span class="opacity-pill">90%</span>
+              </button>
+            </li>
+            <li>
+              <button class="window-item" type="button" data-process="gnome-terminal" data-title="Terminal" data-opacity="76" data-backend="gnome" data-pid="3541">
+                <i data-lucide="terminal" class="app-icon term"></i>
+                <span class="window-meta">
+                  <strong>gnome-terminal</strong>
+                  <span>Terminal</span>
+                </span>
+                <span class="opacity-pill">76%</span>
+              </button>
+            </li>
+          </ul>
+          <div class="empty-state">没有匹配的可见窗口。</div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="status-row">
+            <div class="status-copy">
+              <strong>Background keeper</strong>
+              <span id="keeperStatus">stopped</span>
+            </div>
+            <span class="status-dot" aria-hidden="true"></span>
+          </div>
+          <div class="status-row" id="feedbackRow" style="display:none;">
+            <div class="status-copy">
+              <strong id="feedbackTitle">操作结果</strong>
+              <span id="feedbackText"></span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <header class="topbar" aria-label="工作台标题栏">
+          <div class="title-block">
+            <h2>当前窗口</h2>
+            <p>调节不透明度，按需保存为持久化规则。</p>
+          </div>
+          <div class="top-actions">
+            <div class="segmented" role="group" aria-label="主题">
+              <button id="lightButton" type="button" aria-pressed="true"><i data-lucide="sun"></i>浅色</button>
+              <button id="darkButton" type="button" aria-pressed="false"><i data-lucide="moon"></i>深色</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="main-grid">
+          <section class="panel control-panel" aria-label="窗口控制">
+            <div class="panel-head">
+              <div class="panel-title">
+                <div class="eyebrow"><i data-lucide="monitor-dot"></i><span>当前窗口</span></div>
+                <h3 id="selectedTitle">main.go - windows-transparent</h3>
+                <p id="selectedSubtitle">Code.exe · pid 5678 · win32</p>
+              </div>
+              <div class="badge-group">
+                <span id="selectedRuleBadge" class="badge"><i data-lucide="shield"></i>未保存规则</span>
+              </div>
+            </div>
+
+            <div class="preview-band">
+              <div class="glass-demo" aria-hidden="true">
+                <div class="demo-window">
+                  <div class="demo-chrome">
+                    <span class="traffic"></span>
+                    <span class="traffic"></span>
+                    <span class="traffic"></span>
+                  </div>
+                  <div class="demo-lines">
+                    <span class="demo-line medium"></span>
+                    <span class="demo-line"></span>
+                    <span class="demo-line short"></span>
+                  </div>
+                </div>
+                <div class="demo-window">
+                  <div class="demo-chrome">
+                    <span class="traffic"></span>
+                    <span class="traffic"></span>
+                    <span class="traffic"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="slider-panel">
+                <div class="opacity-readout">
+                  <strong id="opacityValue">82%</strong>
+                  <span>不透明度<br>20-100</span>
+                </div>
+                <div>
+                  <input id="opacityRange" type="range" min="20" max="100" value="82" aria-label="不透明度">
+                  <div class="range-labels">
+                    <span>20</span>
+                    <span>100</span>
+                  </div>
+                </div>
+                <div class="quick-values">
+                  <button class="chip" type="button" data-value="50">50%</button>
+                  <button class="chip" type="button" data-value="65">65%</button>
+                  <button class="chip" type="button" data-value="82">82%</button>
+                  <button class="chip" type="button" data-value="100">100%</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="control-body">
+              <div class="command-row">
+                <button id="applyButton" class="primary-action" type="button"><i data-lucide="sliders-horizontal"></i>应用</button>
+                <button id="newRuleButton" class="secondary-action" type="button"><i data-lucide="shield-plus"></i>保存规则</button>
+                <button id="restoreButton" class="secondary-action" type="button"><i data-lucide="rotate-ccw"></i>恢复</button>
+              </div>
+
+              <div class="switch-row">
+                <div class="switch-copy">
+                  <strong>持续保持该规则</strong>
+                  <span id="persistText">保存 Code.exe -> 82%，并启动后台保持器。</span>
+                </div>
+                <button id="persistSwitch" class="switch" type="button" role="switch" aria-checked="false" aria-label="持续保持该规则"></button>
+              </div>
+
+              <div class="diagnostics">
+                <div class="diagnostic">
+                  <span>配置路径</span>
+                  <strong id="configPathValue">%APPDATA%</strong>
+                </div>
+                <div class="diagnostic">
+                  <span>活动规则</span>
+                  <strong id="activeRulesValue">3</strong>
+                </div>
+                <div class="diagnostic">
+                  <span>后端</span>
+                  <strong id="backendValue">win32</strong>
+                </div>
+              </div>
+
+              <div class="info-strip">
+                <div>
+                  <strong>安全边界</strong>
+                  <span>低于 20% 的透明度不会进入交互控件，避免窗口难以找回。</span>
+                </div>
+                <span class="opacity-pill">20+</span>
+              </div>
+            </div>
+          </section>
+
+          <aside class="side-stack">
+            <section class="panel rules-panel" aria-label="持久化规则">
+              <div class="compact-head">
+                <div>
+                  <h3>持久化规则</h3>
+                  <p>写入 config.json 的透明度配置</p>
+                </div>
+                <button id="addRuleButton" class="compact-action" type="button" title="新增规则" aria-label="新增规则">
+                  <i data-lucide="plus"></i>
+                </button>
+              </div>
+              <ul id="ruleList" class="rule-list">
+                <li class="rule-item">
+                  <span>
+                    <span class="rule-process">Code.exe</span>
+                    <span class="rule-sub">开发工作区</span>
+                  </span>
+                  <span class="rule-meter">
+                    <span class="meter-track"><span class="meter-fill" style="width: 82%;"></span></span>
+                    <span class="rule-value">82%</span>
+                  </span>
+                </li>
+                <li class="rule-item">
+                  <span>
+                    <span class="rule-process">notepad.exe</span>
+                    <span class="rule-sub">临时记录</span>
+                  </span>
+                  <span class="rule-meter">
+                    <span class="meter-track"><span class="meter-fill" style="width: 65%;"></span></span>
+                    <span class="rule-value">65%</span>
+                  </span>
+                </li>
+                <li class="rule-item">
+                  <span>
+                    <span class="rule-process">firefox</span>
+                    <span class="rule-sub">浏览器</span>
+                  </span>
+                  <span class="rule-meter">
+                    <span class="meter-track"><span class="meter-fill" style="width: 90%;"></span></span>
+                    <span class="rule-value">90%</span>
+                  </span>
+                </li>
+              </ul>
+            </section>
+
+            <section class="panel terminal-panel" aria-label="命令预览">
+              <div class="compact-head">
+                <div>
+                  <h3>命令预览</h3>
+                  <p>GUI 动作对应的 CLI 调用</p>
+                </div>
+                <button id="copyCommandButton" class="compact-action" type="button" title="复制命令" aria-label="复制命令">
+                  <i data-lucide="copy"></i>
+                </button>
+              </div>
+              <div class="terminal" aria-live="polite">
+                <div class="terminal-line">
+                  <span class="terminal-prompt">$</span>
+                  <span id="commandText" class="terminal-code">wtrans set --process Code.exe --opacity 82 --persist</span>
+                </div>
+                <div class="terminal-line">
+                  <span class="terminal-prompt">ok</span>
+                  <span class="terminal-code">set 1 window(s) and saved persistent rule</span>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="closeOverlay" class="close-overlay">
+    <div class="close-dialog">
+      <h2>关闭 wtrans</h2>
+      <p>选择关闭方式，勾选下方选项可记住本次选择，下次不再询问。</p>
+      <div class="actions">
+        <button class="btn primary" type="button" id="closeExitBtn">
+          <i data-lucide="x"></i>
+          直接退出
+        </button>
+        <button class="btn" type="button" id="closeTrayBtn">
+          <i data-lucide="minimize-2"></i>
+          最小化到托盘
+        </button>
+      </div>
+      <label class="remember">
+        <input type="checkbox" id="closeRememberCheck">
+        下次不再询问，直接执行所选操作
+      </label>
+    </div>
+  </div>
+
+  <script>
+    const body = document.body;
+    const lightButton = document.getElementById("lightButton");
+    const darkButton = document.getElementById("darkButton");
+    const refreshButton = document.getElementById("refreshButton");
+    const windowCloseButton = document.getElementById("windowCloseButton");
+    const windowMinButton = document.getElementById("windowMinButton");
+    const windowMaxButton = document.getElementById("windowMaxButton");
+    const applyButton = document.getElementById("applyButton");
+    const restoreButton = document.getElementById("restoreButton");
+    const diagnoseButton = document.getElementById("diagnoseButton");
+    const newRuleButton = document.getElementById("newRuleButton");
+    const addRuleButton = document.getElementById("addRuleButton");
+    const keeperStatus = document.getElementById("keeperStatus");
+    const feedbackRow = document.getElementById("feedbackRow");
+    const feedbackTitle = document.getElementById("feedbackTitle");
+    const feedbackText = document.getElementById("feedbackText");
+    let feedbackTimer = null;
+    const copyCommandButton = document.getElementById("copyCommandButton");
+    const windowList = document.getElementById("windowList");
+    const ruleList = document.getElementById("ruleList");
+    const windowCount = document.getElementById("windowCount");
+    const activeRulesValue = document.getElementById("activeRulesValue");
+    const configPathValue = document.getElementById("configPathValue");
+    const searchInput = document.getElementById("searchInput");
+    const selectedTitle = document.getElementById("selectedTitle");
+    const selectedSubtitle = document.getElementById("selectedSubtitle");
+    const opacityRange = document.getElementById("opacityRange");
+    const opacityValue = document.getElementById("opacityValue");
+    const commandText = document.getElementById("commandText");
+    const persistText = document.getElementById("persistText");
+    const persistSwitch = document.getElementById("persistSwitch");
+    const backendValue = document.getElementById("backendValue");
+    const selectedRuleBadge = document.getElementById("selectedRuleBadge");
+    let selectedProcess = "Code.exe";
+    let selectedPid = "5678";
+    let selectedBackend = "win32";
+    let selectedWindowId = "";
+    let selectedHasRule = false;
+    let persistEnabled = false;
+    let dashboardState = null;
+
+    function applyTheme(theme) {
+      body.dataset.theme = theme;
+      lightButton.setAttribute("aria-pressed", String(theme === "light"));
+      darkButton.setAttribute("aria-pressed", String(theme === "dark"));
+    }
+
+    function updateCommand() {
+      const opacity = opacityRange.value;
+      opacityValue.textContent = `${opacity}%`;
+      body.style.setProperty("--selected-opacity-pct", `${opacity}%`);
+      backendValue.textContent = selectedBackend;
+      const persistFlag = persistEnabled ? " --persist" : "";
+      commandText.textContent = `wtrans set --process ${selectedProcess} --opacity ${opacity}${persistFlag}`;
+      if (selectedRuleBadge) {
+        selectedRuleBadge.innerHTML = selectedHasRule
+          ? `<i data-lucide="shield-check"></i>已保存规则`
+          : `<i data-lucide="shield"></i>未保存规则`;
+      }
+      persistText.textContent = persistEnabled
+        ? `保存 ${selectedProcess} -> ${opacity}%，并启动后台保持器。`
+        : `仅对当前可见的 ${selectedProcess} 窗口立即生效。`;
+
+      const selectedItem = windowList.querySelector(".window-item[aria-selected='true']");
+      if (selectedItem) {
+        selectedItem.dataset.opacity = opacity;
+        const pill = selectedItem.querySelector(".opacity-pill");
+        if (pill) pill.textContent = `${opacity}%`;
+      }
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+      }
+    }
+
+    function selectWindow(button) {
+      windowList.querySelectorAll(".window-item").forEach((item) => {
+        item.setAttribute("aria-selected", "false");
+      });
+      button.setAttribute("aria-selected", "true");
+      selectedProcess = button.dataset.process;
+      selectedPid = button.dataset.pid;
+      selectedBackend = button.dataset.backend;
+      selectedWindowId = button.dataset.id;
+      selectedHasRule = button.dataset.hasRule === "true";
+      selectedTitle.textContent = button.dataset.title;
+      selectedSubtitle.textContent = `${selectedProcess} · pid ${selectedPid} · ${selectedBackend}`;
+      opacityRange.value = button.dataset.opacity;
+      updateCommand();
+    }
+
+    function filterWindows() {
+      const query = searchInput.value.trim().toLowerCase();
+      let visible = 0;
+
+      windowList.querySelectorAll("li").forEach((row) => {
+        const button = row.querySelector(".window-item");
+        const haystack = `${button.dataset.process} ${button.dataset.title}`.toLowerCase();
+        const matched = haystack.includes(query);
+        row.hidden = !matched;
+        if (matched) visible += 1;
+      });
+
+      windowCount.textContent = String(visible);
+      windowList.dataset.empty = String(visible === 0);
+    }
+
+    function iconMarkup(icon, iconClass) {
+      return `<i data-lucide="${icon}" class="app-icon ${iconClass}"></i>`;
+    }
+
+    function renderWindows(windows) {
+      const selected = windowList.querySelector(".window-item[aria-selected='true']")?.dataset.id || selectedWindowId;
+      windowCount.textContent = String(windows.length);
+      windowList.innerHTML = windows.map((win, index) => `
+        <li>
+          <button class="window-item" type="button" aria-selected="${selected ? win.id === selected : index === 0}" data-id="${escapeHtml(win.id)}" data-process="${escapeHtml(win.process)}" data-title="${escapeHtml(win.title)}" data-opacity="${escapeHtml(String(win.opacity))}" data-backend="${escapeHtml(win.backend)}" data-pid="${escapeHtml(String(win.pid))}" data-has-rule="${escapeHtml(String(Boolean(win.hasRule)))}">
+            ${iconMarkup(win.icon, win.iconClass)}
+            <span class="window-meta">
+              <strong>${escapeHtml(win.process)}</strong>
+              <span>${escapeHtml(win.title)}</span>
+            </span>
+            <span class="opacity-pill">${escapeHtml(String(win.opacity))}%</span>
+          </button>
+        </li>
+      `).join("");
+
+      windowList.querySelectorAll(".window-item").forEach((button) => {
+        button.addEventListener("click", () => selectWindow(button));
+      });
+
+      const current = windowList.querySelector(".window-item[aria-selected='true']") || windowList.querySelector(".window-item");
+      if (current) {
+        selectWindow(current);
+      }
+
+      filterWindows();
+      windowList.dataset.empty = String(windows.length === 0);
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+      }
+    }
+
+    function renderRules(rules) {
+      activeRulesValue.textContent = String(rules.length);
+      ruleList.innerHTML = rules.map((rule) => `
+        <li class="rule-item">
+          <span>
+            <span class="rule-process">${escapeHtml(rule.process)}</span>
+            <span class="rule-sub">persistent rule</span>
+          </span>
+          <span class="rule-meter">
+            <span class="meter-track"><span class="meter-fill" style="width: ${Math.max(20, Math.min(100, rule.opacity))}%;"></span></span>
+            <span class="rule-value">${escapeHtml(String(rule.opacity))}%</span>
+          </span>
+          <button class="rule-delete" type="button" title="删除规则" aria-label="删除规则" data-process="${escapeHtml(rule.process)}">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </li>
+      `).join("");
+
+      ruleList.querySelectorAll(".rule-delete").forEach((btn) => {
+        btn.addEventListener("click", () => deleteRule(btn.dataset.process));
+      });
+
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+      }
+    }
+
+    async function deleteRule(process) {
+      const api = guiApi();
+      if (!api?.RestoreProcess) return;
+      try {
+        const result = await api.RestoreProcess(process);
+        renderDashboard(result.state);
+        showFeedback("规则已删除", result.message || `已移除 ${process} 的持久化规则`);
+      } catch (err) {
+        showFeedback("删除失败", err?.message || String(err));
+      }
+    }
+
+    function renderDashboard(state) {
+      dashboardState = state;
+      configPathValue.textContent = state.configPath || "%APPDATA%";
+      backendValue.textContent = state.backend || "unknown";
+      if (keeperStatus) {
+        keeperStatus.textContent = state.keeperStatus || "unknown";
+      }
+      renderWindows(state.windows || []);
+      renderRules(state.rules || []);
+      if (state.statusText) {
+        persistText.textContent = state.statusText;
+      }
+    }
+
+    function showFeedback(title, text) {
+      if (!feedbackRow || !feedbackTitle || !feedbackText) return;
+      feedbackTitle.textContent = title;
+      feedbackText.textContent = text;
+      feedbackRow.style.display = "flex";
+      if (feedbackTimer) clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(() => {
+        feedbackRow.style.display = "none";
+      }, 5000);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function currentWindowProcess() {
+      return selectedProcess || windowList.querySelector(".window-item[aria-selected='true']")?.dataset.process || "";
+    }
+
+    function guiApi() {
+      return window.go?.["windows-transparent/internal/gui"]?.App
+        || window.go?.gui?.App
+        || window.go?.main?.App
+        || null;
+    }
+
+    async function refreshDashboard() {
+      const api = guiApi();
+      if (!api?.ListWindows) {
+        return;
+      }
+
+      try {
+        const state = await api.ListWindows();
+        renderDashboard(state);
+      } catch (err) {
+        showFeedback("加载失败", err?.message || String(err));
+      }
+    }
+
+    async function applyOpacity(persistOverride) {
+      const api = guiApi();
+      if (!api?.ApplyOpacity) return;
+      const shouldPersist = persistOverride ?? (persistSwitch?.getAttribute("aria-checked") === "true");
+      try {
+        const result = await api.ApplyOpacity({
+          process: currentWindowProcess(),
+          opacity: Number(opacityRange.value),
+          persist: shouldPersist,
+        });
+        renderDashboard(result.state);
+        persistText.textContent = result.message || persistText.textContent;
+        showFeedback(shouldPersist ? "规则已保存" : "已应用", result.message || "完成");
+      } catch (err) {
+        showFeedback("操作失败", err?.message || String(err));
+      }
+    }
+
+    async function applyFromUi() {
+      await applyOpacity();
+    }
+
+    async function saveRuleFromUi() {
+      persistEnabled = true;
+      persistSwitch?.setAttribute("aria-checked", "true");
+      updateCommand();
+      await applyOpacity(true);
+    }
+
+    async function restoreFromUi() {
+      const api = guiApi();
+      if (!api?.RestoreProcess) return;
+      try {
+        const result = await api.RestoreProcess(currentWindowProcess());
+        renderDashboard(result.state);
+        persistText.textContent = result.message || persistText.textContent;
+        showFeedback("已恢复", result.message || "完成");
+      } catch (err) {
+        showFeedback("操作失败", err?.message || String(err));
+      }
+    }
+
+    async function diagnoseFromUi() {
+      const api = guiApi();
+      if (!api?.Diagnose) return;
+      const text = await api.Diagnose();
+      persistText.textContent = text;
+    }
+
+    async function closeWindow() {
+      const api = guiApi();
+      if (!api) return;
+
+      if (api.GetClosePreference) {
+        const pref = await api.GetClosePreference();
+        if (pref?.remember && pref?.action === "exit" && api.QuitApp) {
+          await api.QuitApp();
+          return;
+        }
+        if (pref?.remember && pref?.action === "tray" && api.HideToTray) {
+          await api.HideToTray();
+          return;
+        }
+      }
+
+      const overlay = document.getElementById("closeOverlay");
+      if (!overlay) {
+        if (api.QuitApp) await api.QuitApp();
+        return;
+      }
+
+      overlay.classList.add("open");
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+      }
+    }
+
+    function hideCloseDialog() {
+      const overlay = document.getElementById("closeOverlay");
+      if (overlay) overlay.classList.remove("open");
+      const check = document.getElementById("closeRememberCheck");
+      if (check) check.checked = false;
+    }
+
+    async function handleCloseChoice(action) {
+      const api = guiApi();
+      if (!api) return;
+
+      const check = document.getElementById("closeRememberCheck");
+      const remember = !!check?.checked;
+
+      hideCloseDialog();
+
+      if (remember && api.SaveClosePreference) {
+        await api.SaveClosePreference(action, true);
+      }
+
+      if (action === "exit" && api.QuitApp) {
+        await api.QuitApp();
+      } else if (action === "tray" && api.HideToTray) {
+        await api.HideToTray();
+      }
+    }
+
+    async function minimizeWindow() {
+      const api = guiApi();
+      if (api?.MinimizeWindow) {
+        await api.MinimizeWindow();
+      }
+    }
+
+    async function maximizeWindow() {
+      const api = guiApi();
+      if (api?.ToggleMaximizeWindow) {
+        await api.ToggleMaximizeWindow();
+      }
+    }
+
+    lightButton?.addEventListener("click", () => applyTheme("light"));
+    darkButton?.addEventListener("click", () => applyTheme("dark"));
+    refreshButton?.addEventListener("click", refreshDashboard);
+    opacityRange?.addEventListener("input", updateCommand);
+    searchInput?.addEventListener("input", filterWindows);
+    persistSwitch?.addEventListener("click", () => {
+      persistEnabled = !persistEnabled;
+      persistSwitch.setAttribute("aria-checked", String(persistEnabled));
+      updateCommand();
+    });
+    windowCloseButton?.addEventListener("click", closeWindow);
+    windowMinButton?.addEventListener("click", minimizeWindow);
+    windowMaxButton?.addEventListener("click", maximizeWindow);
+
+    document.getElementById("closeExitBtn")?.addEventListener("click", () => handleCloseChoice("exit"));
+    document.getElementById("closeTrayBtn")?.addEventListener("click", () => handleCloseChoice("tray"));
+    document.getElementById("closeOverlay")?.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) hideCloseDialog();
+    });
+    applyButton?.addEventListener("click", applyFromUi);
+    restoreButton?.addEventListener("click", restoreFromUi);
+    diagnoseButton?.addEventListener("click", diagnoseFromUi);
+    newRuleButton?.addEventListener("click", saveRuleFromUi);
+    addRuleButton?.addEventListener("click", saveRuleFromUi);
+    copyCommandButton?.addEventListener("click", async () => {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(commandText.textContent || "");
+      }
+    });
+
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        opacityRange.value = chip.dataset.value;
+        updateCommand();
+      });
+    });
+
+    windowList.querySelectorAll(".window-item").forEach((button) => {
+      button.addEventListener("click", () => selectWindow(button));
+    });
+
+    updateCommand();
+
+    refreshDashboard();
+
+    if (window.lucide) {
+      window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+    }
+  </script>
+</body>
+</html>
